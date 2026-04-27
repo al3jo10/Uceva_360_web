@@ -551,7 +551,7 @@ body.single-scene #sceneList, body.single-scene #sceneListToggle {
   left: 260px;
   top: 0;
   height: 40px;
-  width: 40px;
+  width: 46px;
   border-top-right-radius: 5px;
   background-color: rgb(78,88,104);
   visibility: hidden;
@@ -571,7 +571,105 @@ body.single-scene #sceneList, body.single-scene #sceneListToggle {
               visibility 0s 0.6s;
 }
 
+/* Action button placed to the left of the close button (desktop header) */
+.info-hotspot .info-hotspot-action-wrapper {
+  position: absolute;
+  left: 214px; /* recalculated for uniform spacing */
+  top: 0;
+  height: 40px;
+  width: 46px; /* reverted to original width */
+  border-radius: 5px;
+  background-color: #1f4058; /* dark blue */
+  cursor: default;
+  visibility: hidden; /* hidden by default, shown when hotspot is visible */
+  -ms-transform: perspective(200px) rotateY(90deg);
+  -webkit-transform: perspective(200px) rotateY(90deg);
+  transform: perspective(200px) rotateY(90deg);
+  -ms-transform-origin: 0 50% 0;
+  -webkit-transform-origin: 0 50% 0;
+  transform-origin: 0 50% 0;
+  -webkit-transition: -ms-transform 0.3s 0.3s,
+                      -webkit-transform 0.3s 0.3s,
+                      transform 0.3s 0.3s,
+                      visibility 0s 0.6s;
+  transition: -ms-transform 0.3s 0.3s,
+              -webkit-transform 0.3s 0.3s,
+              transform 0.3s 0.3s,
+              visibility 0s 0.6s;
+}
+
+.info-hotspot .info-hotspot-action-icon {
+  width: 70%;
+  height: 70%;
+  margin: 15%;
+  /* empty for now; placed for sizing/alignment */
+}
+
 .desktop .info-hotspot.visible .info-hotspot-close-wrapper {
+  visibility: visible;
+  -ms-transform: perspective(200px) rotateY(0deg);
+  -webkit-transform: perspective(200px) rotateY(0deg);
+  transform: perspective(200px) rotateY(0deg);
+  -webkit-transition: -ms-transform 0.3s,
+                      -webkit-transform 0.3s,
+                      transform 0.3s,
+                      visibility 0s 0s;
+  transition: -ms-transform 0.3s,
+              -webkit-transform 0.3s,
+              transform 0.3s,
+              visibility 0s 0s;
+}
+
+.desktop .info-hotspot.visible .info-hotspot-action-wrapper {
+  /* ensure action stays visible when hotspot is expanded */
+  visibility: visible;
+  -ms-transform: perspective(200px) rotateY(0deg);
+  -webkit-transform: perspective(200px) rotateY(0deg);
+  transform: perspective(200px) rotateY(0deg);
+  -webkit-transition: -ms-transform 0.3s,
+                      -webkit-transform 0.3s,
+                      transform 0.3s,
+                      visibility 0s 0s;
+  transition: -ms-transform 0.3s,
+              -webkit-transform 0.3s,
+              transform 0.3s,
+              visibility 0s 0s;
+}
+
+/* Second action (red) placed between the blue action (left) and the close button (right) */
+.info-hotspot .info-hotspot-action2-wrapper {
+  position: absolute;
+  left: 237px; /* recalculated for uniform spacing */
+  top: 0;
+  height: 40px;
+  width: 46px; /* reverted to original width */
+  border-radius: 5px;
+  background-color: #b33a3a; /* red */
+  cursor: default;
+  visibility: hidden; /* hidden by default */
+  -ms-transform: perspective(200px) rotateY(90deg);
+  -webkit-transform: perspective(200px) rotateY(90deg);
+  transform: perspective(200px) rotateY(90deg);
+  -ms-transform-origin: 0 50% 0;
+  -webkit-transform-origin: 0 50% 0;
+  transform-origin: 0 50% 0;
+  -webkit-transition: -ms-transform 0.3s 0.3s,
+                      -webkit-transform 0.3s 0.3s,
+                      transform 0.3s 0.3s,
+                      visibility 0s 0.6s;
+  transition: -ms-transform 0.3s 0.3s,
+              -webkit-transform 0.3s 0.3s,
+              transform 0.3s 0.3s,
+              visibility 0s 0.6s;
+}
+
+.info-hotspot .info-hotspot-action2-icon {
+  width: 70%;
+  height: 70%;
+  margin: 15%;
+}
+
+.desktop .info-hotspot.visible .info-hotspot-action2-wrapper {
   visibility: visible;
   -ms-transform: perspective(200px) rotateY(0deg);
   -webkit-transform: perspective(200px) rotateY(0deg);
@@ -737,11 +835,66 @@ body.single-scene #sceneList, body.single-scene #sceneListToggle {
   position: absolute;
   top: 0;
   right: 0;
-  width: 50px;
-  height: 50px;
+  width: 56px;
+  height: 56px;
   background-color: rgb(78,88,104);
   background-color: rgba(78,88,104,0.8);
   cursor: pointer;
+}
+
+/* Action button for modal (mobile) placed to the left of the close (right side) */
+.info-hotspot-modal .info-hotspot-action-wrapper {
+  position: absolute;
+  top: 0;
+  right: 52px; /* moved slightly to account for increased width */
+  width: 56px; /* reverted to previous modal size */
+  height: 56px;
+  background-color: #1f4058; /* dark blue */
+  background-color: rgba(31,64,88,0.95);
+  cursor: default;
+  visibility: hidden; /* hidden by default, shown when modal is visible */
+  opacity: 0;
+  -webkit-transition: opacity 0.2s, visibility 0s 0.2s;
+  transition: opacity 0.2s, visibility 0s 0.2s;
+}
+
+/* Modal red action placed between blue modal action (right:50px) and modal close (right:0) */
+.info-hotspot-modal .info-hotspot-action2-wrapper {
+  position: absolute;
+  top: 0;
+  right: 30px; /* positioned between blue modal action (right:52) and modal close (right:0) */
+  width: 56px;
+  height: 56px;
+  background-color: rgba(179,58,58,0.95); /* red */
+  cursor: default;
+  visibility: hidden;
+  opacity: 0;
+  -webkit-transition: opacity 0.2s, visibility 0s 0.2s;
+  transition: opacity 0.2s, visibility 0s 0.2s;
+}
+
+.info-hotspot-modal .info-hotspot-action2-icon {
+  width: 70%;
+  height: 70%;
+  margin: 15%;
+}
+
+.info-hotspot-modal.visible .info-hotspot-action2-wrapper {
+  visibility: visible;
+  opacity: 1;
+}
+
+.info-hotspot-modal .info-hotspot-action-icon {
+  width: 70%;
+  height: 70%;
+  margin: 15%;
+}
+
+.info-hotspot-modal.visible .info-hotspot-action-wrapper {
+  visibility: visible;
+  opacity: 1;
+  -webkit-transition: opacity 0.2s;
+  transition: opacity 0.2s;
 }
 
 .info-hotspot-modal .info-hotspot-close-icon {
