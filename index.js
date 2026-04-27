@@ -414,110 +414,125 @@
   // WEBXR VR SUPPORT FOR META QUEST 3
   // ========================================
   var xrSession = null;
-  var xrFrameOfReference = null;
+  var xrRefSpace = null;
   var vrButton = document.getElementById('vrButton');
   var vrStatus = document.getElementById('vrStatus');
+  var isVRActive = false;
 
   // Check for WebXR support
   function initializeVR() {
     if (!navigator.xr) {
-      console.log('WebXR no soportado en este dispositivo');
+      console.log('WebXR no soportado');
       return;
     }
 
-    // Check if immersive-vr is supported
     navigator.xr.isSessionSupported('immersive-vr').then(function(supported) {
       if (supported) {
         vrButton.style.display = 'block';
-        console.log('VR soportado - botón mostrado');
+        console.log('✓ VR soportado');
       } else {
-        console.log('Modo VR inmersivo no soportado');
+        console.log('✗ VR no soportado en este navegador');
       }
     }).catch(function(err) {
-      console.error('Error verificando soporte VR:', err);
+      console.error('Error verificando VR:', err);
     });
   }
 
   // Enter VR mode
-  vrButton.addEventListener('click', function() {
-    if (!navigator.xr) {
-      alert('WebXR no está disponible en tu dispositivo');
-      return;
-    }
-
-    navigator.xr.requestSession('immersive-vr', {
-      requiredFeatures: ['local-floor'],
-      optionalFeatures: ['dom-overlay', 'dom-overlay-for-handheld-ar'],
-      domOverlay: { root: document.body }
-    }).then(function(session) {
-      xrSession = session;
-      vrButton.textContent = '❌ Salir de VR';
-      vrButton.classList.add('vr-active');
-      vrStatus.style.display = 'block';
-      vrStatus.textContent = '🥽 VR Activo - Mueve tu cabeza';
-
-      // Get the XR context
-      var canvas = panoElement.querySelector('canvas');
-      if (!canvas) {
-        // Crear canvas si no existe
-        canvas = document.createElement('canvas');
-        panoElement.appendChild(canvas);
-      }
-
-      var gl = canvas.getContext('webgl2', { xrCompatible: true }) || canvas.getContext('webgl', { xrCompatible: true });
-
-      if (!gl) {
-        alert('No se pudo obtener contexto WebGL');
+  vrButton.addEventListener('click', async function() {
+    try {
+      if (isVRActive) {
+        // Salir de VR
+        if (xrSession) {
+          await xrSession.end();
+        }
         return;
       }
 
-      // Obtener el reference space
-      session.requestReferenceSpace('local-floor').then(function(refSpace) {
-        xrFrameOfReference = refSpace;
-        session.requestAnimationFrame(onXRFrame);
-      }).catch(function(err) {
-        console.error('Error obteniendo reference space:', err);
+      if (!navigator.xr) {
+        alert('WebXR no disponible');
+        return;
+      }
+
+      // Detener autorotate antes de entrar en VR
+      stopAutorotate();
+
+      var session = await navigator.xr.requestSession('immersive-vr', {
+        requiredFeatures: ['local-floor', 'local'],
+        optionalFeatures: ['hand-tracking']
       });
 
-      // Capturar salida de VR
+      xrSession = session;
+      isVRActive = true;
+      
+      vrButton.textContent = '❌ Salir de VR';
+      vrButton.classList.add('vr-active');
+      vrStatus.style.display = 'block';
+      vrStatus.textContent = '🥽 VR Activo';
+
+      // Obtener reference space
+      var refSpace = await session.requestReferenceSpace('local-floor').catch(function() {
+        // Fallback a local si local-floor no está disponible
+        return session.requestReferenceSpace('local');
+      });
+
+      xrRefSpace = refSpace;
+
+      // Iniciar el loop de animación XR
+      session.requestAnimationFrame(onXRFrame);
+
+      // Manejar cuando termina la sesión VR
       session.addEventListener('end', function() {
         xrSession = null;
-        xrFrameOfReference = null;
+        xrRefSpace = null;
+        isVRActive = false;
         vrButton.textContent = '📱 Entrar en VR';
         vrButton.classList.remove('vr-active');
         vrStatus.style.display = 'none';
+        vrStatus.textContent = '';
+        // Reiniciar autorotate
+        startAutorotate();
       });
-    }).catch(function(err) {
-      console.error('Error al solicitar sesión VR:', err);
-      alert('Error al entrar en VR: ' + err.message);
-    });
+
+    } catch (err) {
+      console.error('Error VR:', err);
+      isVRActive = false;
+      vrStatus.textContent = '❌ Error: ' + err.message;
+    }
   });
 
-  // XR Animation Frame
+  // Loop de actualización para VR
+  var vrAnimationId = null;
   function onXRFrame(time, frame) {
-    if (!xrSession || !xrFrameOfReference) {
+    if (!xrSession || !xrRefSpace || !isVRActive) {
       return;
     }
 
-    // Get viewer pose
-    var pose = frame.getViewerPose(xrFrameOfReference);
+    try {
+      // Obtener la pose del visor
+      var pose = frame.getViewerPose(xrRefSpace);
 
-    if (pose) {
-      // Extraer rotación del headset (quaternion)
-      var quat = pose.transform.orientation;
-      
-      // Convertir quaternion a Euler angles (yaw, pitch)
-      var eulerAngles = quaternionToEuler(quat);
-      
-      // Actualizar vista del Marzipano viewer con la rotación del headset
-      var currentView = viewer.view();
-      if (currentView) {
-        currentView.setYaw(eulerAngles.yaw);
-        currentView.setPitch(eulerAngles.pitch);
+      if (pose && pose.transform) {
+        // Obtener orientación del headset
+        var quat = pose.transform.orientation;
+        
+        if (quat) {
+          // Convertir quaternion a Euler angles
+          var euler = quaternionToEuler(quat);
+          
+          // Obtener la vista actual y actualizar ángulos
+          var view = viewer.view();
+          if (view) {
+            view.setYaw(euler.yaw);
+            view.setPitch(euler.pitch);
+          }
+        }
       }
+    } catch (e) {
+      console.error('Error en frame XR:', e);
     }
 
-    // Continuar con el siguiente frame
+    // Solicitar el siguiente frame
     xrSession.requestAnimationFrame(onXRFrame);
   }
 
@@ -528,9 +543,21 @@
     var z = quat.z || 0;
     var w = quat.w || 1;
 
-    var roll = Math.atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y));
-    var pitch = Math.asin(2 * (w * y - z * x));
-    var yaw = Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z));
+    // Roll (rotación alrededor del eje X)
+    var sinr_cosp = 2 * (w * x + y * z);
+    var cosr_cosp = 1 - 2 * (x * x + y * y);
+    var roll = Math.atan2(sinr_cosp, cosr_cosp);
+
+    // Pitch (rotación alrededor del eje Y)
+    var sinp = 2 * (w * y - z * x);
+    var pitch = Math.abs(sinp) >= 1 
+      ? Math.PI / 2 * (sinp < 0 ? -1 : 1)
+      : Math.asin(sinp);
+
+    // Yaw (rotación alrededor del eje Z)
+    var siny_cosp = 2 * (w * z + x * y);
+    var cosy_cosp = 1 - 2 * (y * y + z * z);
+    var yaw = Math.atan2(siny_cosp, cosy_cosp);
 
     return {
       yaw: yaw,
@@ -539,7 +566,7 @@
     };
   }
 
-  // Inicializar VR cuando la página cargue
+  // Inicializar VR
   initializeVR();
 
 })();
