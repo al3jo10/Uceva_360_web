@@ -21,8 +21,11 @@
             });
         }
 
-        // Cargar activos (imágenes)
+        // Cargar activos (imágenes cubemap)
         loadAssets();
+
+        // Aplicar cubemap inicial
+        applyCubemap(currentSceneId);
 
         // Generar hotspots para la escena inicial
         generateHotspots(currentSceneId);
@@ -34,21 +37,11 @@
         createSceneList();
     }
 
-    // Cargar todas las imágenes en <a-assets>
+    // Cargar activos - con cubemap directo, esto no es necesario
+    // pero se mantiene por compatibilidad
     function loadAssets() {
-        var assetsContainer = document.getElementById('assets-container');
-        if (!assetsContainer) return;
-
-        if (window.APP_DATA && window.APP_DATA.scenes) {
-            window.APP_DATA.scenes.forEach(function(scene) {
-                var img = document.createElement('img');
-                img.id = 'scene-' + scene.id;
-                img.src = 'tiles/' + scene.id + '/preview.jpg';
-                img.crossOrigin = 'anonymous';
-                assetsContainer.appendChild(img);
-                console.log('Cargado asset:', img.id);
-            });
-        }
+        console.log('Inicializando sistema de cubemap...');
+        // Los cubemaps se cargan dinámicamente en applyCubemap()
     }
 
     // Generar hotspots para una escena
@@ -131,11 +124,9 @@
         }
 
         currentSceneId = newSceneId;
-        var assetId = 'scene-' + newSceneId;
 
-        // Cambiar imagen de fondo
-        var sky = document.getElementById('main-sky');
-        sky.setAttribute('src', '#' + assetId);
+        // Aplicar cubemap
+        applyCubemap(newSceneId);
 
         // Generar nuevos hotspots
         generateHotspots(newSceneId);
@@ -144,6 +135,82 @@
         updateSceneUI(newSceneId);
 
         console.log('Cambio de escena a:', newSceneId);
+    }
+
+    // Aplicar cubemap como material a la caja envolvente
+    function applyCubemap(sceneId) {
+        // Orden para Three.js CubeTextureLoader: [px, nx, py, ny, pz, nz]
+        // Nuestros archivos: r, l, u, d, f, b
+        var urls = [
+            'tiles/' + sceneId + '/1/r/0/0.jpg',  // +X (right)
+            'tiles/' + sceneId + '/1/l/0/0.jpg',  // -X (left)
+            'tiles/' + sceneId + '/1/u/0/0.jpg',  // +Y (up)
+            'tiles/' + sceneId + '/1/d/0/0.jpg',  // -Y (down)
+            'tiles/' + sceneId + '/1/f/0/0.jpg',  // +Z (front)
+            'tiles/' + sceneId + '/1/b/0/0.jpg'   // -Z (back)
+        ];
+
+        // Obtener elemento de cubemap
+        var cubeEntity = document.getElementById('main-cubemap');
+        
+        // Si ya existe un mesh, removerlo
+        if (cubeEntity.object3D && cubeEntity.object3D.children.length > 0) {
+            cubeEntity.object3D.children[0].geometry.dispose();
+            cubeEntity.object3D.children[0].material.dispose();
+            cubeEntity.removeChild(cubeEntity.firstChild);
+        }
+
+        // Crear la geometría y material
+        var scene = cubeEntity.sceneEl;
+        var camera = scene.camera;
+        
+        // Crear TextureLoader para cargar las imágenes
+        var textureLoader = new THREE.TextureLoader();
+        
+        // Cargar las 6 texturas
+        var textures = [];
+        var loadedCount = 0;
+        
+        urls.forEach(function(url, index) {
+            textureLoader.load(url, function(texture) {
+                texture.encoding = THREE.sRGBColorSpace;
+                textures[index] = texture;
+                loadedCount++;
+                
+                // Cuando todas estén cargadas, crear el cubemap
+                if (loadedCount === 6) {
+                    createCubemapBox(cubeEntity, textures);
+                }
+            }, undefined, function(error) {
+                console.error('Error cargando textura:', url, error);
+                // Fallback a preview.jpg si no está disponible
+                if (loadedCount + 1 === 6) loadedCount++;
+            });
+        });
+    }
+
+    // Crear la caja de cubemap con las texturas cargadas
+    function createCubemapBox(cubeEntity, textures) {
+        var geometry = new THREE.BoxGeometry(2000, 2000, 2000);
+        
+        // Crear material para cada cara del cubo
+        var materials = [];
+        for (var i = 0; i < 6; i++) {
+            if (textures[i]) {
+                materials.push(new THREE.MeshBasicMaterial({ 
+                    map: textures[i],
+                    side: THREE.BackSide
+                }));
+            } else {
+                materials.push(new THREE.MeshBasicMaterial({ color: 0x444444 }));
+            }
+        }
+        
+        var mesh = new THREE.Mesh(geometry, materials);
+        
+        // Agregar al entity
+        cubeEntity.setObject3D('mesh', mesh);
+        console.log('Cubemap aplicado a escena');
     }
 
     // Actualizar nombre de escena
