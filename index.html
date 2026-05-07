@@ -1,241 +1,113 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Project Title</title>
-<meta charset="utf-8">
-<meta name="viewport" content="target-densitydpi=device-dpi, width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, minimal-ui" />
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<style> @-ms-viewport { width: device-width; } </style>
-<link rel="stylesheet" href="vendor/reset.min.css">
-<link rel="stylesheet" href="style.css">
-<script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-<style>
-  #vrButton {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    padding: 12px 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: bold;
-    cursor: pointer;
-    z-index: 1000;
-    display: none;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-    transition: all 0.3s ease;
-  }
-  #vrButton:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-  }
-  #vrButton:active {
-    transform: scale(0.95);
-  }
-  #vrButton.vr-active {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  }
-  #vrStatus {
-    position: fixed;
-    top: 10px;
-    left: 10px;
-    padding: 8px 16px;
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    border-radius: 4px;
-    font-size: 12px;
-    display: none;
-    z-index: 999;
-  }
-  #vr-scene {
-    display: none;
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 2000;
-  }
-  #vr-scene.active {
-    display: block;
-  }
-</style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recorrido Virtual 360 - VR Inmersivo</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: #000;
+        }
+        #scene-name {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            z-index: 100;
+            text-shadow: 0 0 10px rgba(0,0,0,0.8);
+        }
+        #scene-list {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px 20px;
+            border-radius: 10px;
+            z-index: 100;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 90vw;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        .scene-btn {
+            padding: 8px 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .scene-btn:hover,
+        .scene-btn.active {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            transform: scale(1.1);
+        }
+    </style>
 </head>
-<body class="multiple-scenes view-control-buttons">
+<body>
+    <div id="scene-name">Escena: <span id="current-scene">Cargando...</span></div>
+    <div id="scene-list"></div>
 
-<div id="pano"></div>
+    <!-- A-Scene con configuración optimizada para VR y alta resolución -->
+    <a-scene 
+        renderer="antialias: true; colorManagement: true; highRefreshRate: true;"
+        vr-mode-ui="enabled: false"
+    >
+        <!-- Gestor de activos: Carga todas las imágenes preview -->
+        <a-assets id="assets-container">
+            <!-- Las imágenes se cargarán dinámicamente aquí -->
+        </a-assets>
 
-<div id="sceneList">
-  <ul class="scenes">
-    
-      <a href="javascript:void(0)" class="scene" data-id="0-29">
-        <li class="text">29</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="1-28">
-        <li class="text">28</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="2-27">
-        <li class="text">27</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="3-26">
-        <li class="text">26</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="4-25">
-        <li class="text">25</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="5-24">
-        <li class="text">24</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="6-23">
-        <li class="text">23</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="7-22">
-        <li class="text">22</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="8-21">
-        <li class="text">21</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="9-20">
-        <li class="text">20</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="10-19">
-        <li class="text">19</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="11-18">
-        <li class="text">18</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="12-17">
-        <li class="text">17</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="13-16">
-        <li class="text">16</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="14-15">
-        <li class="text">15</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="15-14">
-        <li class="text">14</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="16-13">
-        <li class="text">13</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="17-12">
-        <li class="text">12</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="18-11">
-        <li class="text">11</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="19-10">
-        <li class="text">10</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="20-9">
-        <li class="text">9</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="21-8">
-        <li class="text">8</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="22-7">
-        <li class="text">7</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="23-6">
-        <li class="text">6</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="24-4">
-        <li class="text">4</li>
-      </a>
-    
-      <a href="javascript:void(0)" class="scene" data-id="25-3">
-        <li class="text">3</li>
-      </a>
-    
-  </ul>
-</div>
+        <!-- Cielo 360 inicial -->
+        <a-sky id="main-sky" src="#scene-0-29" rotation="0 -90 0"></a-sky>
 
-<div id="titleBar">
-  <h1 class="sceneName"></h1>
-</div>
+        <!-- Cámara y controles -->
+        <a-entity id="rig">
+            <!-- Cámara con cursor para PC/Móvil -->
+            <a-camera look-controls wasd-controls>
+                <a-cursor 
+                    raycaster="objects: .hotspot" 
+                    color="#FFFFFF"
+                    fuse="true"
+                    fuse-timeout="2000"
+                    animation__click="property: scale; startEvents: click; easing: easeInCubic; dur: 150; from: 0.1 0.1 0.1; to: 1 1 1"
+                ></a-cursor>
+            </a-camera>
 
-<a href="javascript:void(0)" id="autorotateToggle">
-  <img class="icon off" src="img/play.png">
-  <img class="icon on" src="img/pause.png">
-</a>
+            <!-- Controladores láser para Meta Quest 3 -->
+            <a-entity 
+                laser-controls="hand: right" 
+                raycaster="objects: .hotspot; lineOpacity: 0.5"
+            ></a-entity>
+            <a-entity 
+                laser-controls="hand: left" 
+                raycaster="objects: .hotspot; lineOpacity: 0.5"
+            ></a-entity>
+        </a-entity>
 
-<a href="javascript:void(0)" id="fullscreenToggle">
-  <img class="icon off" src="img/fullscreen.png">
-  <img class="icon on" src="img/windowed.png">
-</a>
+        <!-- Contenedor para hotspots (se genera dinámicamente) -->
+        <a-entity id="hotspots-container"></a-entity>
 
-<a href="javascript:void(0)" id="sceneListToggle">
-  <img class="icon off" src="img/expand.png">
-  <img class="icon on" src="img/collapse.png">
-</a>
-
-<a href="javascript:void(0)" id="viewUp" class="viewControlButton viewControlButton-1">
-  <img class="icon" src="img/up.png">
-</a>
-<a href="javascript:void(0)" id="viewDown" class="viewControlButton viewControlButton-2">
-  <img class="icon" src="img/down.png">
-</a>
-<a href="javascript:void(0)" id="viewLeft" class="viewControlButton viewControlButton-3">
-  <img class="icon" src="img/left.png">
-</a>
-<a href="javascript:void(0)" id="viewRight" class="viewControlButton viewControlButton-4">
-  <img class="icon" src="img/right.png">
-</a>
-<a href="javascript:void(0)" id="viewIn" class="viewControlButton viewControlButton-5">
-  <img class="icon" src="img/plus.png">
-</a>
-<a href="javascript:void(0)" id="viewOut" class="viewControlButton viewControlButton-6">
-  <img class="icon" src="img/minus.png">
-</a>
-
-<div id="vrStatus"></div>
-<button id="vrButton">📱 Entrar en VR</button>
-
-<!-- A-Frame Scene para WebXR (Meta Quest 3) -->
-<div id="vr-scene">
-    <a-scene embedded="false" vr-mode-ui="enabled: false" xr-mode="vr" rendering-stats="enabled: false">
-      <a-sky id="vr-sky" rotation="0 0 0"></a-sky>
-      <a-camera id="vr-camera" wasd-controls-enabled="false"></a-camera>
     </a-scene>
-  </div>
 
-  <!-- Controles VR superpuestos -->
-  <div id="vr-controls" style="display:none; position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:3000; background:rgba(0,0,0,0.7); padding:10px 20px; border-radius:20px; color:white; font-size:14px;">
-    <p id="scene-hint" style="margin:0; text-align:center;">Toca los puntos para cambiar de escena</p>
-<script src="vendor/screenfull.min.js" ></script>
-<script src="vendor/bowser.min.js" ></script>
-<script src="vendor/marzipano.js" ></script>
-
-<script src="data.js"></script>
-<script src="index.js"></script>
-
+    <!-- Scripts -->
+    <script src="data.js"></script>
+    <script src="vr-scene.js"></script>
 </body>
 </html>
