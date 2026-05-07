@@ -411,116 +411,176 @@
   switchScene(scenes[0]);
 
   // ========================================
-  // VR SUPPORT FOR META QUEST 3 - DEVICE ORIENTATION
+  // HYBRID: MARZIPANO + A-FRAME VR (Meta Quest 3)
   // ========================================
   var vrButton = document.getElementById('vrButton');
   var vrStatus = document.getElementById('vrStatus');
-  var isVRActive = false;
-  var initialOrientation = null;
-  var orientationOffset = { alpha: 0, beta: 0, gamma: 0 };
+  var vrScene = document.getElementById('vr-scene');
+  var vrSky = document.getElementById('vr-sky');
+  var aframeScene = document.querySelector('a-scene');
+  var isVRMode = false;
+  var currentSceneData = null;
 
-  // Verificar soporte Device Orientation
+  // Detectar soporte WebXR
   function initializeVR() {
-    vrButton.style.display = 'block';
-    
-    // Solicitar permisos en iOS 13+
-    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-      vrButton.addEventListener('click', requestPermission);
-    } else if (typeof DeviceOrientationEvent !== 'undefined') {
-      vrButton.addEventListener('click', toggleVRMode);
-    } else {
-      vrButton.style.display = 'none';
+    if (!navigator.xr) {
+      console.log('WebXR no disponible');
+      return;
+    }
+
+    navigator.xr.isSessionSupported('immersive-vr').then(function(supported) {
+      if (supported) {
+        vrButton.style.display = 'block';
+        console.log('✓ WebXR immersive-vr soportado');
+      } else {
+        console.log('✗ VR inmersivo no soportado');
+      }
+    }).catch(function(err) {
+      console.error('Error verificando WebXR:', err);
+    });
+  }
+
+  // Obtener URL de la imagen actual
+  function getCurrentSceneImageUrl() {
+    try {
+      // Obtener la escena actual del viewer de Marzipano
+      var currentScene = viewer.scene();
+      if (!currentScene) {
+        return 'tiles/0-29/preview.jpg';
+      }
+
+      // Buscar los datos de esta escena
+      var sceneData = null;
+      for (var i = 0; i < data.scenes.length; i++) {
+        if (data.scenes[i].id === currentScene.name()) {
+          sceneData = data.scenes[i];
+          break;
+        }
+      }
+
+      if (!sceneData) {
+        return 'tiles/0-29/preview.jpg';
+      }
+
+      // Construir URL de preview
+      var urlPrefix = 'tiles';
+      var previewUrl = urlPrefix + '/' + sceneData.id + '/preview.jpg';
+      return previewUrl;
+    } catch (err) {
+      console.error('Error obteniendo URL:', err);
+      return 'tiles/0-29/preview.jpg';
     }
   }
 
-  // Solicitar permisos (iOS 13+)
-  function requestPermission() {
-    DeviceOrientationEvent.requestPermission()
-      .then(function(permission) {
-        if (permission === 'granted') {
-          toggleVRMode();
-        } else {
-          alert('Permisos denegados');
-        }
-      })
-      .catch(function(err) {
-        console.error('Error de permisos:', err);
-        toggleVRMode(); // Intentar de todas formas
-      });
-  }
+  // Actualizar referencia a la escena actual cuando cambia
+  var originalSwitchScene = switchScene;
+  switchScene = function(scene) {
+    currentSceneData = scene.data;
+    originalSwitchScene.call(this, scene);
+  };
 
-  // Activar/Desactivar modo VR
-  function toggleVRMode() {
-    if (isVRActive) {
+  // Evento del botón VR
+  vrButton.addEventListener('click', function() {
+    if (isVRMode) {
       // Salir de VR
-      window.removeEventListener('deviceorientation', handleDeviceOrientation);
-      isVRActive = false;
-      vrButton.textContent = '📱 Entrar en VR';
-      vrButton.classList.remove('vr-active');
-      vrStatus.style.display = 'none';
-      vrStatus.textContent = '';
-      
-      // Reiniciar autorotate
-      startAutorotate();
+      exitVR();
     } else {
       // Entrar en VR
+      enterVR();
+    }
+  });
+
+  // Entrar en VR
+  function enterVR() {
+    if (!aframeScene) {
+      alert('A-Frame no cargado correctamente');
+      return;
+    }
+
+    try {
+      // Detener autorotate
       stopAutorotate();
-      isVRActive = true;
-      initialOrientation = null;
-      
+
+      // Obtener imagen actual
+      var imageUrl = getCurrentSceneImageUrl();
+      console.log('Imagen VR:', imageUrl);
+
+      // Asignar imagen a A-Frame sky
+      vrSky.setAttribute('src', imageUrl);
+
+      // Mostrar escena de A-Frame
+      vrScene.classList.add('active');
+
+      // Actualizar UI
       vrButton.textContent = '❌ Salir de VR';
       vrButton.classList.add('vr-active');
       vrStatus.style.display = 'block';
       vrStatus.textContent = '🥽 VR Activo - Mueve tu cabeza';
-      
-      // Iniciar escucha de orientación del dispositivo
-      window.addEventListener('deviceorientation', handleDeviceOrientation, false);
+      isVRMode = true;
+
+      // Esperar a que A-Frame esté listo
+      if (aframeScene.hasLoaded) {
+        console.log('A-Frame listo, solicitando VR...');
+        requestVRFromAFrame();
+      } else {
+        aframeScene.addEventListener('loaded', function() {
+          console.log('A-Frame loaded, solicitando VR...');
+          requestVRFromAFrame();
+        }, { once: true });
+      }
+    } catch (err) {
+      console.error('Error entrando en VR:', err);
+      vrStatus.textContent = '❌ Error: ' + err.message;
     }
   }
 
-  // Manejar eventos de orientación del dispositivo
-  function handleDeviceOrientation(event) {
-    if (!isVRActive) return;
-
-    try {
-      var alpha = event.alpha || 0; // Z axis
-      var beta = event.beta || 0;   // X axis
-      var gamma = event.gamma || 0; // Y axis
-
-      // En la primera lectura, establece el offset
-      if (initialOrientation === null) {
-        initialOrientation = { alpha: alpha, beta: beta, gamma: gamma };
-      }
-
-      // Calcular diferencia desde la orientación inicial
-      var deltaAlpha = alpha - initialOrientation.alpha;
-      var deltaBeta = beta - initialOrientation.beta;
-      var deltaGamma = gamma - initialOrientation.gamma;
-
-      // Normalizar valores
-      if (deltaAlpha > 180) deltaAlpha -= 360;
-      if (deltaAlpha < -180) deltaAlpha += 360;
-
-      // Obtener vista actual
-      var view = viewer.view();
-      if (view) {
-        // Mapear orientación del dispositivo a yaw/pitch del panorama
-        // Alpha (Z) = Yaw (rotación horizontal)
-        // Beta (X) = Pitch (rotación vertical)
-        
-        var yawFromAlpha = (deltaAlpha * Math.PI) / 180;
-        var pitchFromBeta = (deltaBeta * Math.PI) / 180;
-
-        // Limitar pitch para evitar volteo excesivo
-        if (pitchFromBeta > Math.PI / 2) pitchFromBeta = Math.PI / 2;
-        if (pitchFromBeta < -Math.PI / 2) pitchFromBeta = -Math.PI / 2;
-
-        view.setYaw(yawFromAlpha);
-        view.setPitch(pitchFromBeta);
-      }
-    } catch (e) {
-      console.error('Error en orientación:', e);
+  // Solicitar sesión VR a A-Frame
+  function requestVRFromAFrame() {
+    if (aframeScene.is('vr-mode')) {
+      console.log('Ya en VR mode');
+      return;
     }
+
+    // Usar el método de A-Frame para entrar en VR
+    if (aframeScene.enterVR) {
+      aframeScene.enterVR();
+    } else {
+      // Fallback: intentar con el canvas
+      console.log('enterVR no disponible, intentando otro método');
+    }
+  }
+
+  // Salir de VR
+  function exitVR() {
+    try {
+      // Salir de VR en A-Frame
+      if (aframeScene && aframeScene.exitVR) {
+        aframeScene.exitVR();
+      }
+
+      // Ocultar escena de A-Frame
+      vrScene.classList.remove('active');
+
+      // Actualizar UI
+      vrButton.textContent = '📱 Entrar en VR';
+      vrButton.classList.remove('vr-active');
+      vrStatus.style.display = 'none';
+      vrStatus.textContent = '';
+      isVRMode = false;
+
+      // Reiniciar autorotate
+      startAutorotate();
+    } catch (err) {
+      console.error('Error saliendo de VR:', err);
+    }
+  }
+
+  // Escuchar evento de salida de VR
+  if (aframeScene) {
+    aframeScene.addEventListener('exit-vr', function() {
+      console.log('Usuario salió de VR');
+      exitVR();
+    });
   }
 
   // Inicializar VR
