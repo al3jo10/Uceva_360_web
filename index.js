@@ -390,6 +390,7 @@
   switchScene(scenes[0]);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
   // ========================================
   // HYBRID: MARZIPANO + A-FRAME VR (Meta Quest 3)
   // ========================================
@@ -780,6 +781,8 @@
   // Inicializar VR
   initializeVR();
 
+=======
+>>>>>>> parent of 8dc8b38 (2)
 =======
 >>>>>>> parent of 8dc8b38 (2)
 })();
