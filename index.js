@@ -420,6 +420,7 @@
   var aframeScene = document.querySelector('a-scene');
   var isVRMode = false;
   var currentSceneData = null;
+  var panoramaCanvas = null;
 
   // Detectar soporte WebXR
   function initializeVR() {
@@ -440,52 +441,74 @@
     });
   }
 
-  // Obtener URL de la imagen actual
-  function getCurrentSceneImageUrl() {
+  // Obtener canvas de Marzipano y convertir a imagen
+  function getCameraScreenshot() {
     try {
-      // Obtener la escena actual del viewer de Marzipano
-      var currentScene = viewer.scene();
-      if (!currentScene) {
-        return 'tiles/0-29/preview.jpg';
+      var canvas = panoElement.querySelector('canvas');
+      if (canvas) {
+        // Obtener datos del canvas
+        return canvas.toDataURL('image/jpeg', 0.9);
       }
-
-      // Buscar los datos de esta escena
-      var sceneData = null;
-      for (var i = 0; i < data.scenes.length; i++) {
-        if (data.scenes[i].id === currentScene.name()) {
-          sceneData = data.scenes[i];
-          break;
-        }
-      }
-
-      if (!sceneData) {
-        return 'tiles/0-29/preview.jpg';
-      }
-
-      // Construir URL de preview
-      var urlPrefix = 'tiles';
-      var previewUrl = urlPrefix + '/' + sceneData.id + '/preview.jpg';
-      return previewUrl;
+      return null;
     } catch (err) {
-      console.error('Error obteniendo URL:', err);
-      return 'tiles/0-29/preview.jpg';
+      console.error('Error capturando canvas:', err);
+      return null;
     }
   }
 
-  // Actualizar referencia a la escena actual cuando cambia
+  // Obtener URL de imagen de máxima calidad
+  function getSceneImageUrl() {
+    if (!currentSceneData) {
+      return 'tiles/0-29/preview.jpg';
+    }
+
+    // Intentar usar screenshot del canvas (máxima calidad)
+    var screenshot = getCameraScreenshot();
+    if (screenshot) {
+      console.log('Usando screenshot de canvas');
+      return screenshot;
+    }
+
+    // Fallback a preview.jpg
+    var urlPrefix = 'tiles';
+    var previewUrl = urlPrefix + '/' + currentSceneData.id + '/preview.jpg';
+    console.log('Usando preview:', previewUrl);
+    return previewUrl;
+  }
+
+  // Actualizar imagen en VR cuando cambia escena
+  function updateVRImage() {
+    if (!isVRMode || !vrSky) {
+      return;
+    }
+
+    try {
+      var imageUrl = getSceneImageUrl();
+      vrSky.setAttribute('src', imageUrl);
+      console.log('Imagen VR actualizada');
+    } catch (err) {
+      console.error('Error actualizando imagen VR:', err);
+    }
+  }
+
+  // Hook en switchScene para actualizar VR automáticamente
   var originalSwitchScene = switchScene;
   switchScene = function(scene) {
     currentSceneData = scene.data;
     originalSwitchScene.call(this, scene);
+    
+    // Si estamos en VR, actualizar la imagen
+    if (isVRMode) {
+      // Esperar un frame para que Marzipano renderice
+      setTimeout(updateVRImage, 100);
+    }
   };
 
   // Evento del botón VR
   vrButton.addEventListener('click', function() {
     if (isVRMode) {
-      // Salir de VR
       exitVR();
     } else {
-      // Entrar en VR
       enterVR();
     }
   });
@@ -501,9 +524,14 @@
       // Detener autorotate
       stopAutorotate();
 
-      // Obtener imagen actual
-      var imageUrl = getCurrentSceneImageUrl();
-      console.log('Imagen VR:', imageUrl);
+      // Obtener imagen actual en máxima calidad
+      var imageUrl = getSceneImageUrl();
+      console.log('Entrando en VR con imagen:', imageUrl);
+
+      if (!imageUrl) {
+        alert('No se pudo obtener imagen de la escena');
+        return;
+      }
 
       // Asignar imagen a A-Frame sky
       vrSky.setAttribute('src', imageUrl);
@@ -511,12 +539,22 @@
       // Mostrar escena de A-Frame
       vrScene.classList.add('active');
 
-      // Actualizar UI
+      // Ocultar UI de Marzipano
+      document.body.classList.add('vr-mode');
+
+      // Actualizar botón
       vrButton.textContent = '❌ Salir de VR';
       vrButton.classList.add('vr-active');
       vrStatus.style.display = 'block';
       vrStatus.textContent = '🥽 VR Activo - Mueve tu cabeza';
       isVRMode = true;
+
+      // Habilitar hotspots y mostrar controles
+      enableVRHotspots();
+      showVRControls();
+
+      // Mostrar lista de escenas en VR
+      sceneListElement.classList.add('enabled');
 
       // Esperar a que A-Frame esté listo
       if (aframeScene.hasLoaded) {
@@ -531,22 +569,29 @@
     } catch (err) {
       console.error('Error entrando en VR:', err);
       vrStatus.textContent = '❌ Error: ' + err.message;
+      isVRMode = false;
     }
   }
 
   // Solicitar sesión VR a A-Frame
   function requestVRFromAFrame() {
+    if (!aframeScene) return;
+
     if (aframeScene.is('vr-mode')) {
       console.log('Ya en VR mode');
       return;
     }
 
-    // Usar el método de A-Frame para entrar en VR
-    if (aframeScene.enterVR) {
-      aframeScene.enterVR();
-    } else {
-      // Fallback: intentar con el canvas
-      console.log('enterVR no disponible, intentando otro método');
+    try {
+      // Usar el método de A-Frame para entrar en VR
+      if (aframeScene.enterVR) {
+        console.log('Llamando enterVR...');
+        aframeScene.enterVR();
+      } else {
+        console.log('enterVR no disponible');
+      }
+    } catch (err) {
+      console.error('Error en requestVRFromAFrame:', err);
     }
   }
 
@@ -554,22 +599,32 @@
   function exitVR() {
     try {
       // Salir de VR en A-Frame
-      if (aframeScene && aframeScene.exitVR) {
-        aframeScene.exitVR();
+      if (aframeScene && aframeScene.is && aframeScene.is('vr-mode')) {
+        if (aframeScene.exitVR) {
+          aframeScene.exitVR();
+        }
       }
 
       // Ocultar escena de A-Frame
       vrScene.classList.remove('active');
 
-      // Actualizar UI
+      // Mostrar UI de Marzipano
+      document.body.classList.remove('vr-mode');
+
+      // Actualizar botón
       vrButton.textContent = '📱 Entrar en VR';
       vrButton.classList.remove('vr-active');
       vrStatus.style.display = 'none';
       vrStatus.textContent = '';
       isVRMode = false;
 
+      // Ocultar controles VR
+      hideVRControls();
+
       // Reiniciar autorotate
       startAutorotate();
+      
+      console.log('Salido de VR');
     } catch (err) {
       console.error('Error saliendo de VR:', err);
     }
@@ -581,6 +636,101 @@
       console.log('Usuario salió de VR');
       exitVR();
     });
+  }
+
+  // Mejorar UI cuando está en VR
+  var originalStyle = document.createElement('style');
+  originalStyle.textContent = `
+    body.vr-mode #titleBar,
+    body.vr-mode #autorotateToggle,
+    body.vr-mode #fullscreenToggle,
+    body.vr-mode #sceneListToggle,
+    body.vr-mode .viewControlButton {
+      display: none !important;
+    }
+    body.vr-mode #pano {
+      display: none !important;
+    }
+    /* Mantener lista de escenas visible en VR pero optimizada */
+    body.vr-mode #sceneList {
+      position: fixed !important;
+      bottom: 80px !important;
+      left: 50% !important;
+      transform: translateX(-50%) !important;
+      right: auto !important;
+      max-height: 200px !important;
+      overflow-y: auto !important;
+      background: rgba(0, 0, 0, 0.85) !important;
+      border-radius: 10px !important;
+      padding: 10px !important;
+      width: 90% !important;
+      max-width: 600px !important;
+    }
+    body.vr-mode #sceneList .scenes {
+      display: flex !important;
+      flex-wrap: wrap !important;
+      gap: 5px !important;
+      justify-content: center !important;
+    }
+    body.vr-mode #sceneList .scene {
+      padding: 8px 12px !important;
+      background: #667eea !important;
+      border-radius: 5px !important;
+      color: white !important;
+      font-size: 12px !important;
+      cursor: pointer !important;
+      transition: all 0.2s !important;
+    }
+    body.vr-mode #sceneList .scene:hover,
+    body.vr-mode #sceneList .scene.current {
+      background: #764ba2 !important;
+      transform: scale(1.1) !important;
+    }
+    #vr-controls {
+      background: rgba(0, 0, 0, 0.8) !important;
+      padding: 15px 20px !important;
+      border-radius: 10px !important;
+    }
+  `;
+  document.head.appendChild(originalStyle);
+
+  // Hacer que los hotspots funcionen en VR
+  function enableVRHotspots() {
+    var hotspots = document.querySelectorAll('.scene');
+    hotspots.forEach(function(hotspot) {
+      // Remover listeners antiguos
+      var clone = hotspot.cloneNode(true);
+      hotspot.parentNode.replaceChild(clone, hotspot);
+
+      // Agregar listener nuevo que funcione en VR
+      clone.addEventListener('click', function(e) {
+        e.preventDefault();
+        var sceneId = clone.getAttribute('data-id');
+        console.log('VR: Cambiando a escena:', sceneId);
+        
+        // Encontrar y cambiar a la escena
+        for (var i = 0; i < scenes.length; i++) {
+          if (scenes[i].data.id === sceneId) {
+            switchScene(scenes[i]);
+            break;
+          }
+        }
+      }, true);
+    });
+  }
+
+  // Mostrar UI de VR
+  var vrControls = document.getElementById('vr-controls');
+  function showVRControls() {
+    if (vrControls) {
+      vrControls.style.display = 'block';
+    }
+  }
+
+  function hideVRControls() {
+    if (vrControls) {
+      vrControls.style.display = 'none';
+    }
   }
 
   // Inicializar VR

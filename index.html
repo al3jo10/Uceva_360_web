@@ -221,12 +221,15 @@
 
 <!-- A-Frame Scene para WebXR (Meta Quest 3) -->
 <div id="vr-scene">
-  <a-scene embedded="false" vr-mode-ui="enabled: false" xr-mode="vr">
-    <a-sky id="vr-sky" rotation="0 0 0"></a-sky>
-    <a-camera id="vr-camera" wasd-controls-enabled="false"></a-camera>
-  </a-scene>
-</div>
+    <a-scene embedded="false" vr-mode-ui="enabled: false" xr-mode="vr" rendering-stats="enabled: false">
+      <a-sky id="vr-sky" rotation="0 0 0"></a-sky>
+      <a-camera id="vr-camera" wasd-controls-enabled="false"></a-camera>
+    </a-scene>
+  </div>
 
+  <!-- Controles VR superpuestos -->
+  <div id="vr-controls" style="display:none; position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:3000; background:rgba(0,0,0,0.7); padding:10px 20px; border-radius:20px; color:white; font-size:14px;">
+    <p id="scene-hint" style="margin:0; text-align:center;">Toca los puntos para cambiar de escena</p>
 <script src="vendor/screenfull.min.js" ></script>
 <script src="vendor/bowser.min.js" ></script>
 <script src="vendor/marzipano.js" ></script>
