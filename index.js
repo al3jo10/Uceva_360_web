@@ -319,31 +319,10 @@
     closeIcon.classList.add('info-hotspot-close-icon');
     closeWrapper.appendChild(closeIcon);
 
-  // Create action element (placeholder) to appear next to the close (X) button.
-  // This button is a visual placeholder for a future action and does nothing for now.
-  var actionWrapper = document.createElement('div');
-  actionWrapper.classList.add('info-hotspot-action-wrapper');
-  var actionIcon = document.createElement('div');
-  actionIcon.classList.add('info-hotspot-action-icon');
-  actionIcon.setAttribute('title', 'Acción');
-  actionWrapper.appendChild(actionIcon);
-
-  // Create second action element (red) to sit between the blue action and the close (X).
-  var actionRedWrapper = document.createElement('div');
-  actionRedWrapper.classList.add('info-hotspot-action2-wrapper');
-  var actionRedIcon = document.createElement('div');
-  actionRedIcon.classList.add('info-hotspot-action2-icon');
-  actionRedIcon.setAttribute('title', 'Acción roja');
-  actionRedWrapper.appendChild(actionRedIcon);
-
-  // Construct header element.
-  header.appendChild(iconWrapper);
-  header.appendChild(titleWrapper);
-  // Place the action buttons to the left of the close button so they appear "al lado de la X".
-  // Order: blue action, red action, close (so red sits between blue and close).
-  header.appendChild(actionWrapper);
-  header.appendChild(actionRedWrapper);
-  header.appendChild(closeWrapper);
+    // Construct header element.
+    header.appendChild(iconWrapper);
+    header.appendChild(titleWrapper);
+    header.appendChild(closeWrapper);
 
     // Create text element.
     var text = document.createElement('div');
@@ -410,6 +389,7 @@
   // Display the initial scene.
   switchScene(scenes[0]);
 
+<<<<<<< HEAD
   // ========================================
   // HYBRID: MARZIPANO + A-FRAME VR (Meta Quest 3)
   // ========================================
@@ -800,4 +780,6 @@
   // Inicializar VR
   initializeVR();
 
+=======
+>>>>>>> parent of 8dc8b38 (2)
 })();
