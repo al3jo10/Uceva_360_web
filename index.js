@@ -462,18 +462,36 @@
       return 'tiles/0-29/preview.jpg';
     }
 
-    // Intentar usar screenshot del canvas (máxima calidad)
-    var screenshot = getCameraScreenshot();
-    if (screenshot) {
-      console.log('Usando screenshot de canvas');
-      return screenshot;
-    }
-
-    // Fallback a preview.jpg
+    // Preferir preview.jpg por defecto (más fiable que screenshot para proyecciones)
     var urlPrefix = 'tiles';
     var previewUrl = urlPrefix + '/' + currentSceneData.id + '/preview.jpg';
-    console.log('Usando preview:', previewUrl);
     return previewUrl;
+  }
+
+  // Intentar cargar un cubemap (6 caras) desde la estructura de tiles
+  function loadCubemap(sceneId, onSuccess, onError) {
+    // Faces en orden para THREE.CubeTexture: +X, -X, +Y, -Y, +Z, -Z
+    var faces = ['r', 'l', 'u', 'd', 'f', 'b'];
+    var urls = faces.map(function(f) {
+      return 'tiles/' + sceneId + '/1/' + f + '/0/0.jpg';
+    });
+
+    // Asegurarnos que THREE esté disponible (A-Frame lo incluye)
+    if (typeof window.THREE === 'undefined' || typeof window.THREE.CubeTextureLoader === 'undefined') {
+      console.log('THREE no disponible para cubemap');
+      if (onError) onError(new Error('THREE no disponible'));
+      return;
+    }
+
+    var loader = new window.THREE.CubeTextureLoader();
+    loader.load(urls, function(texture) {
+      if (window.THREE && window.THREE.sRGBEncoding) texture.encoding = window.THREE.sRGBEncoding;
+      console.log('Cubemap cargado correctamente');
+      if (onSuccess) onSuccess(texture);
+    }, undefined, function(err) {
+      console.warn('No se pudo cargar cubemap, fallback a preview', err);
+      if (onError) onError(err);
+    });
   }
 
   // Actualizar imagen en VR cuando cambia escena
@@ -484,8 +502,26 @@
 
     try {
       var imageUrl = getSceneImageUrl();
-      vrSky.setAttribute('src', imageUrl);
-      console.log('Imagen VR actualizada');
+      // Preferir cubemap si está disponible
+      if (currentSceneData && window.THREE) {
+        loadCubemap(currentSceneData.id, function(texture) {
+          try {
+            if (aframeScene && aframeScene.object3D) {
+              aframeScene.object3D.background = texture;
+            }
+            console.log('Imagen VR actualizada (cubemap)');
+          } catch (e) {
+            vrSky.setAttribute('src', imageUrl);
+            console.warn('Error aplicando cubemap en update:', e);
+          }
+        }, function() {
+          vrSky.setAttribute('src', imageUrl);
+          console.log('Imagen VR actualizada (preview)');
+        });
+      } else {
+        vrSky.setAttribute('src', imageUrl);
+        console.log('Imagen VR actualizada (preview)');
+      }
     } catch (err) {
       console.error('Error actualizando imagen VR:', err);
     }
@@ -503,6 +539,11 @@
       setTimeout(updateVRImage, 100);
     }
   };
+
+  // Asegurar que tenemos referencia a la escena inicial
+  if (!currentSceneData && scenes && scenes[0]) {
+    currentSceneData = scenes[0].data;
+  }
 
   // Evento del botón VR
   vrButton.addEventListener('click', function() {
@@ -533,11 +574,34 @@
         return;
       }
 
-      // Asignar imagen a A-Frame sky
-      vrSky.setAttribute('src', imageUrl);
-
-      // Mostrar escena de A-Frame
-      vrScene.classList.add('active');
+      // Intentar cargar cubemap de alta resolución; si falla, usar preview
+      var usedCubemap = false;
+      if (currentSceneData && window.THREE) {
+        loadCubemap(currentSceneData.id, function(texture) {
+          try {
+            // Aplicar como background de la escena A-Frame (Three.js)
+            if (aframeScene && aframeScene.object3D) {
+              aframeScene.object3D.background = texture;
+              console.log('Fondo A-Frame: cubemap aplicado');
+            }
+            // Mostrar escena de A-Frame
+            vrScene.classList.add('active');
+            usedCubemap = true;
+          } catch (e) {
+            console.warn('Error aplicando cubemap:', e);
+            // fallback abajo
+          }
+        }, function() {
+          // onError: fallback a preview
+          console.log('Fallback: usando preview.jpg');
+          vrSky.setAttribute('src', imageUrl);
+          vrScene.classList.add('active');
+        });
+      } else {
+        // Mostrar escena de A-Frame con preview
+        vrSky.setAttribute('src', imageUrl);
+        vrScene.classList.add('active');
+      }
 
       // Ocultar UI de Marzipano
       document.body.classList.add('vr-mode');
